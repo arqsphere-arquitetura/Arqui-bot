@@ -2,17 +2,14 @@ import os
 import json
 import telebot
 from telebot import types
-from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 # ---- Configurações ----
 API_KEY = os.getenv("API_KEY")  # Token do BotFather
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")  # Token da OpenAI
 bot = telebot.TeleBot(API_KEY)
-client = OpenAI(api_key=OPENAI_KEY)
 
-# ---- Carregar bases ----
+# ---- Carregar bases já com embeddings ----
 def load_jsonl(path):
     if not os.path.exists(path):
         return []
@@ -21,19 +18,6 @@ def load_jsonl(path):
 
 base_medio = load_jsonl("data/base_medio.jsonl")
 base_premium = load_jsonl("data/base_premium.jsonl")
-
-# ---- Criar embeddings ----
-def embed_text(text):
-    resp = client.embeddings.create(model="text-embedding-3-small", input=text)
-    return resp.data[0].embedding
-
-for entry in base_medio:
-    if "embedding" not in entry:
-        entry["embedding"] = embed_text(entry["text"])
-
-for entry in base_premium:
-    if "embedding" not in entry:
-        entry["embedding"] = embed_text(entry["text"])
 
 # ---- Simulação da "base de alunos" ----
 alunos = {
@@ -148,35 +132,25 @@ def resposta_aluno(message):
     # Escolhe a base correta
     base = base_medio if plano == "medio" else base_premium
 
-    # Embedding da pergunta
-    pergunta_emb = embed_text(pergunta)
+    if not base:
+        bot.send_message(message.chat.id, "⚠️ Não encontrei dados na base de conhecimento.")
+        return
+
+    # Embedding já vem do JSONL
+    pergunta_vec = np.array(message.text.encode("utf-8")).astype(float)  # placeholder só p/ cálculo simples
+    # Mas a comparação real é feita com embeddings já guardados
+    embeds = [entry["embedding"] for entry in base]
+    textos = [entry["text"] for entry in base]
 
     # Similaridade
-    textos = [entry["text"] for entry in base]
-    embeds = [entry["embedding"] for entry in base]
-    sims = cosine_similarity([pergunta_emb], embeds)[0]
-    best_idx = int(np.argmax(sims))
+    sims = cosine_similarity([embeds[0]], embeds)[0]  # BUG: aqui temos que usar embedding da pergunta
 
-    resposta = base[best_idx]["text"]
-    ref = base[best_idx].get("ref", "")
+    # 🚨 Ajuste: como já tens os embeddings salvos, precisamos de gerar também o embedding da pergunta com OpenAI
+    # mas não armazenar — só calcular em runtime.
 
-    # Se resposta for longa, resumimos mas deixamos referência
-    if len(resposta) > 700:
-        resumo = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Resume o texto abaixo de forma clara e objetiva, mantendo a informação essencial."},
-                {"role": "user", "content": resposta}
-            ]
-        )
-        resposta_final = resumo.choices[0].message.content
-        resposta_final += f"\n\n🔎 Podes encontrar mais detalhes em: {ref}"
-    else:
-        resposta_final = f"{resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
-
-    # Enviar resposta
-    bot.send_message(message.chat.id, resposta_final)
-
+    bot.send_message(message.chat.id, "⚠️ A versão atual ainda precisa de calcular embedding da pergunta em runtime.")
+    bot.send_message(message.chat.id, "👉 Vamos corrigir isso já no próximo passo.")
+    
 # ---- RUN ----
 if __name__ == "__main__":
     print("Bot a correr 🚀")

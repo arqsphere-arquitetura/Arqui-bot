@@ -105,7 +105,7 @@ def mostrar_redes(call):
     )
     markup.add(
         types.InlineKeyboardButton("📌 Pinterest", url="https://pt.pinterest.com/ArqSphere/"),
-        types.InlineKeyboardButton("📰 Blog", url="https://teu-blog.com")
+        types.InlineKeyboardButton("📰 Blog", url="https://arqsphere.wixsite.com/arqsphere")
     )
     markup.add(types.InlineKeyboardButton("🔙 Voltar", callback_data="voltar_menu"))
 

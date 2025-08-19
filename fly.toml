@@ -1,9 +1,5 @@
 app = "arqui-bot"
 
-[build]
-  # se usares Dockerfile, basta deixar assim
-  dockerfile = "Dockerfile"
-
 [env]
   PORT = "8080"
 

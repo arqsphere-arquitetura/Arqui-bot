@@ -8,7 +8,8 @@ bot = telebot.TeleBot(API_KEY)
 # Simulação da "base de alunos"
 alunos = {
     "aluno1@email.com": "medio",
-    "aluno2@email.com": "premium"
+    "aluno2@email.com": "premium",
+    "arqsphere.arquitetura@gmail.com":"premium"
 }
 
 # Estado temporário

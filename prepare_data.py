@@ -62,6 +62,6 @@ def process_pdf(pdf_path, output_path, plano):
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # 👉 Atualiza os caminhos para os teus PDFs
-    process_pdf("pdfs/medio.pdf", "data/base_medio.jsonl", plano="Médio")
-    process_pdf("pdfs/premium.pdf", "data/base_premium.jsonl", plano="Premium")
+    # 👉 PDFs estão na raiz do repositório
+    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO DE ARQUITETURA.pdf", "data/base_medio.jsonl", plano="Médio")
+    process_pdf("MÓDULO EXTRA - SEO.pdf", "data/base_premium.jsonl", plano="Premium")

@@ -15,7 +15,8 @@ alunos = {
 
 # Estado temporário
 esperando_email = {}
-plano_ativo = {}  # <- guarda se o aluno é medio ou premium
+plano_ativo = {}   # <- guarda se o aluno é medio ou premium
+modo_conversa = {} # <- guarda se o aluno está no "Arqui responde"
 
 # ----------- START COM BOTÕES INLINE -----------
 
@@ -117,11 +118,41 @@ def mostrar_redes(call):
     bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
     bot.send_message(call.message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
-# ----------- PLACEHOLDER PARA "ARQUI RESPONDE" -----------
+# ----------- "ARQUI RESPONDE" MODO CONVERSA -----------
 
 @bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
 def arqui_responde(call):
-    bot.send_message(call.message.chat.id, "🤖 Escreve a tua dúvida e a Arqui vai responder com base nos ebooks!")
+    modo_conversa[call.message.chat.id] = True
+
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("🔙 Voltar ao Menu", callback_data="voltar_menu"))
+
+    bot.send_message(
+        call.message.chat.id,
+        "🤖 Estou muito feliz em poder ajudar!\n\nEscreve a tua dúvida e vou responder com base nos materiais e ebooks 📚✨",
+        reply_markup=markup
+    )
+
+# ----------- PROCESSAR MENSAGENS NO MODO CONVERSA -----------
+
+@bot.message_handler(func=lambda msg: msg.chat.id in modo_conversa)
+def responder_duvidas(message):
+    pergunta = message.text.strip().lower()
+
+    # Se o aluno digitar "menu", sai do modo conversa
+    if pergunta in ["menu", "/menu"]:
+        del modo_conversa[message.chat.id]
+        if plano_ativo.get(message.chat.id) == "medio":
+            botoes_medio(message)
+        elif plano_ativo.get(message.chat.id) == "premium":
+            botoes_premium(message)
+        return
+
+    # Placeholder de resposta automática
+    resposta = f"📖 Boa questão!\nAinda não tenho ligação direta à base de ebooks, mas em breve vou poder responder automaticamente.\n\nRegistei a tua dúvida: *{message.text}*"
+    bot.send_message(message.chat.id, resposta, parse_mode="Markdown")
+
+# ------------------------------------------------------------
 
 if __name__ == "__main__":
     print("Bot a correr 🚀")

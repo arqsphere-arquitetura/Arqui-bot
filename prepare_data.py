@@ -37,7 +37,7 @@ def split_text(text, max_length=500):
     return chunks
 
 # ---- Processar PDF em JSONL ----
-def process_pdf(pdf_path, output_path, plano, append=False):
+def process_pdf(pdf_path, output_path, plano):
     pages = extract_pdf_text(pdf_path)
     data = []
 
@@ -52,20 +52,38 @@ def process_pdf(pdf_path, output_path, plano, append=False):
                 "embedding": embedding
             })
 
-    mode = "a" if append else "w"
-    with open(output_path, mode, encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         for entry in data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(f"✅ {plano} atualizado com {len(data)} blocos de {pdf_path}")
+    print(f"✅ {plano} pronto: {len(data)} blocos salvos em {output_path}")
+
 
 # ---- MAIN ----
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # ⚡ Plano Médio -> só o ebook Portfólio
-    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO D...pdf", "data/base_medio.jsonl", plano="Médio")
+    # --- Plano Médio (apenas 1 PDF) ---
+    process_pdf("medio.pdf", "data/base_medio.jsonl", plano="Médio")
 
-    # ⚡ Plano Premium -> Portfólio + SEO (junta os dois)
-    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO D...pdf", "data/base_premium.jsonl", plano="Premium")
-    process_pdf("MÓDULO EXTRA - SEO.pdf", "data/base_premium.jsonl", plano="Premium", append=True)
+    # --- Plano Premium (junção de 2 PDFs) ---
+    premium_output = "data/base_premium.jsonl"
+
+    # Primeiro PDF (igual ao médio)
+    process_pdf("medio.pdf", premium_output, plano="Premium")
+
+    # Segundo PDF (SEO extra) → acrescentar no mesmo ficheiro
+    pages = extract_pdf_text("seo.pdf")
+    with open(premium_output, "a", encoding="utf-8") as f:
+        for page_num, page_text in pages:
+            chunks = split_text(page_text)
+            for i, chunk in enumerate(chunks, start=1):
+                ref = f"Plano Premium (SEO) - Página {page_num}, Bloco {i}"
+                embedding = embed_text(chunk)
+                f.write(json.dumps({
+                    "text": chunk,
+                    "ref": ref,
+                    "embedding": embedding
+                }, ensure_ascii=False) + "\n")
+
+    print("✅ Premium atualizado com SEO incluído!")

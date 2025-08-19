@@ -22,7 +22,7 @@ def load_jsonl(path):
 base_medio = load_jsonl("data/base_medio.jsonl")
 base_premium = load_jsonl("data/base_premium.jsonl")
 
-# Criar embeddings apenas se não existirem
+# ---- Criar embeddings ----
 def embed_text(text):
     resp = client.embeddings.create(model="text-embedding-3-small", input=text)
     return resp.data[0].embedding
@@ -148,10 +148,6 @@ def resposta_aluno(message):
     # Escolhe a base correta
     base = base_medio if plano == "medio" else base_premium
 
-    if not base:
-        bot.send_message(message.chat.id, "⚠️ Ainda não tenho dados carregados para responder a esta dúvida.")
-        return
-
     # Embedding da pergunta
     pergunta_emb = embed_text(pergunta)
 
@@ -160,22 +156,26 @@ def resposta_aluno(message):
     embeds = [entry["embedding"] for entry in base]
     sims = cosine_similarity([pergunta_emb], embeds)[0]
     best_idx = int(np.argmax(sims))
-    score = sims[best_idx]
 
     resposta = base[best_idx]["text"]
-    ref = base[best_idx].get("ref", "capítulo correspondente")
+    ref = base[best_idx].get("ref", "")
 
-    # Resposta com fallback se a similaridade for baixa
-    if score < 0.60:
-        bot.send_message(
-            message.chat.id,
-            "🤔 Não tenho a certeza absoluta da resposta. Recomendo veres o material no capítulo certo ou contactares o suporte."
+    # Se resposta for longa, resumimos mas deixamos referência
+    if len(resposta) > 700:
+        resumo = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Resume o texto abaixo de forma clara e objetiva, mantendo a informação essencial."},
+                {"role": "user", "content": resposta}
+            ]
         )
+        resposta_final = resumo.choices[0].message.content
+        resposta_final += f"\n\n🔎 Podes encontrar mais detalhes em: {ref}"
     else:
-        bot.send_message(
-            message.chat.id,
-            f"📘 {resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
-        )
+        resposta_final = f"{resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
+
+    # Enviar resposta
+    bot.send_message(message.chat.id, resposta_final)
 
 # ---- RUN ----
 if __name__ == "__main__":

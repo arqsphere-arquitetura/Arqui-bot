@@ -63,7 +63,7 @@ if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
     # Médio (ficheiro único dentro da pasta premium_pdfs)
-    process_pdf("premium_pdfs/medio.pdf", "data/base_medio.jsonl", plano="Médio")
+    process_pdf("medio.pdf", "data/base_medio.jsonl", plano="Médio")
 
     # Premium (todos os PDFs dentro da pasta premium_pdfs)
     premium_folder = "premium_pdfs"

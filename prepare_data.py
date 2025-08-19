@@ -1,28 +1,67 @@
-
 import os
 import json
-import pickle
-import openai
+from PyPDF2 import PdfReader
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# ---- Configurações ----
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_KEY)
 
-def gerar_embeddings(input_jsonl, output_pkl):
+# ---- Função para criar embeddings ----
+def embed_text(text):
+    resp = client.embeddings.create(model="text-embedding-3-small", input=text)
+    return resp.data[0].embedding
+
+# ---- Extrair texto dos PDFs ----
+def extract_pdf_text(pdf_path):
+    reader = PdfReader(pdf_path)
+    pages = []
+    for i, page in enumerate(reader.pages, start=1):
+        text = page.extract_text()
+        if text:
+            pages.append((i, text))
+    return pages
+
+# ---- Dividir texto em blocos ----
+def split_text(text, max_length=500):
+    sentences = text.split(". ")
+    chunks, current = [], ""
+    for sentence in sentences:
+        if len(current) + len(sentence) < max_length:
+            current += sentence + ". "
+        else:
+            chunks.append(current.strip())
+            current = sentence + ". "
+    if current:
+        chunks.append(current.strip())
+    return chunks
+
+# ---- Processar PDF em JSONL ----
+def process_pdf(pdf_path, output_path, plano):
+    pages = extract_pdf_text(pdf_path)
     data = []
-    with open(input_jsonl, "r", encoding="utf-8") as f:
-        for line in f:
-            obj = json.loads(line)
-            texto = obj["text"]
-            emb = openai.embeddings.create(
-                model="text-embedding-3-small",
-                input=texto
-            )["data"][0]["embedding"]
-            data.append({"text": texto, "embedding": emb})
 
-    with open(output_pkl, "wb") as f:
-        pickle.dump(data, f)
+    for page_num, page_text in pages:
+        chunks = split_text(page_text)
+        for i, chunk in enumerate(chunks, start=1):
+            ref = f"Plano {plano} - Página {page_num}, Bloco {i}"
+            embedding = embed_text(chunk)
+            data.append({
+                "text": chunk,
+                "ref": ref,
+                "embedding": embedding
+            })
 
+    with open(output_path, "w", encoding="utf-8") as f:
+        for entry in data:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    print(f"✅ {plano} pronto: {len(data)} blocos salvos em {output_path}")
+
+# ---- MAIN ----
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
-    gerar_embeddings("data/base_medio.jsonl", "data/base_medio.pkl")
-    gerar_embeddings("data/base_premium.jsonl", "data/base_premium.pkl")
-    print("✅ Embeddings gerados e guardados em data/*.pkl")
+
+    # 👉 Atualiza os caminhos para os teus PDFs
+    process_pdf("pdfs/medio.pdf", "data/base_medio.jsonl", plano="Médio")
+    process_pdf("pdfs/premium.pdf", "data/base_premium.jsonl", plano="Premium")

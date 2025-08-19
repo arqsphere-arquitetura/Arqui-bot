@@ -30,16 +30,6 @@ def send_welcome(message):
         reply_markup=markup
     )
 
-@bot.message_handler(func=lambda msg: msg.text == "🚀 Começa agora")
-def start_flow(message):
-    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-    markup.add("📧 Insere o teu mail para desbloquear", "🆘 Preciso de ajuda")
-    bot.send_message(
-        message.chat.id,
-        "Perfeito 🚀\nEscolhe uma opção abaixo:",
-        reply_markup=markup
-    )
-
 # ----------- O RESTO DO TEU FLUXO CONTINUA IGUAL -----------
 
 @bot.message_handler(func=lambda msg: msg.text == "🆘 Preciso de ajuda")

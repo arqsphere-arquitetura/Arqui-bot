@@ -37,14 +37,14 @@ def split_text(text, max_length=500):
     return chunks
 
 # ---- Processar PDF em JSONL ----
-def process_pdf(pdf_path, plano, append=False):
+def process_pdf(pdf_path, output_path, plano):
     pages = extract_pdf_text(pdf_path)
     data = []
 
     for page_num, page_text in pages:
         chunks = split_text(page_text)
         for i, chunk in enumerate(chunks, start=1):
-            ref = f"Plano {plano} - {os.path.basename(pdf_path)} - Página {page_num}, Bloco {i}"
+            ref = f"Plano {plano} - Página {page_num}, Bloco {i}"
             embedding = embed_text(chunk)
             data.append({
                 "text": chunk,
@@ -52,30 +52,42 @@ def process_pdf(pdf_path, plano, append=False):
                 "embedding": embedding
             })
 
-    output_path = f"data/base_{plano.lower()}.jsonl"
-    mode = "a" if append else "w"
-
-    with open(output_path, mode, encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         for entry in data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(f"✅ {plano} atualizado com {len(data)} blocos de {os.path.basename(pdf_path)}")
-
+    print(f"✅ {plano} pronto: {len(data)} blocos salvos em {output_path}")
 
 # ---- MAIN ----
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # --- Plano Médio (1 PDF apenas) ---
-    process_pdf("medio.pdf", plano="Médio")
+    # Médio (ficheiro único)
+    process_pdf("medio.pdf", "data/base_medio.jsonl", plano="Médio")
 
-    # --- Plano Premium (todos PDFs dentro da pasta premium_pdfs) ---
-    premium_pdfs = "premium_pdfs"
-    first = True
-    for pdf_file in os.listdir(premium_pdfs):
+    # Premium (vários PDFs dentro da pasta)
+    premium_folder = "premium_pdfs"
+    premium_output = "data/base_premium.jsonl"
+
+    premium_data = []
+    for pdf_file in os.listdir(premium_folder):
         if pdf_file.endswith(".pdf"):
-            pdf_path = os.path.join(premium_pdfs, pdf_file)
-            process_pdf(pdf_path, plano="Premium", append=not first)
-            first = False
+            pdf_path = os.path.join(premium_folder, pdf_file)
+            print(f"📄 Processando {pdf_file}...")
+            pages = extract_pdf_text(pdf_path)
+            for page_num, page_text in pages:
+                chunks = split_text(page_text)
+                for i, chunk in enumerate(chunks, start=1):
+                    ref = f"Premium - {pdf_file}, Página {page_num}, Bloco {i}"
+                    embedding = embed_text(chunk)
+                    premium_data.append({
+                        "text": chunk,
+                        "ref": ref,
+                        "embedding": embedding
+                    })
 
-    print("🚀 Todos os planos processados com sucesso!")
+    with open(premium_output, "w", encoding="utf-8") as f:
+        for entry in premium_data:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    print(f"✨ Premium pronto: {len(premium_data)} blocos salvos em {premium_output}")

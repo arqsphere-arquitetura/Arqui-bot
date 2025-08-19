@@ -30,8 +30,8 @@ alunos = {
 }
 
 esperando_email = {}
-plano_ativo = {}          # Guarda o plano do aluno (medio/premium)
-esperando_pergunta = {}   # Guarda se o bot está à espera da dúvida
+plano_ativo = {}      # Guarda o plano do aluno (medio/premium)
+modo_conversa = {}    # Guarda se o aluno está no modo "A Arqui responde"
 
 # ---- Função para embeddings ----
 def embed_text(text):
@@ -67,10 +67,20 @@ def callback_query(call):
         mostrar_redes(call)
 
     elif call.data == "voltar_menu":
+        modo_conversa[call.message.chat.id] = False
         if plano_ativo.get(call.message.chat.id) == "medio":
             botoes_medio(call.message)
         elif plano_ativo.get(call.message.chat.id) == "premium":
             botoes_premium(call.message)
+
+    elif call.data == "arqui_responde":
+        modo_conversa[call.message.chat.id] = True
+        bot.send_message(
+            call.message.chat.id,
+            "🤖 Estou feliz por te ajudar! Podes escrever livremente a tua dúvida.\n\n"
+            "✏️ Sempre que quiseres voltar ao menu, escreve *menu* ou carrega em Voltar.",
+            parse_mode="Markdown"
+        )
 
 # ---- Verificar Email ----
 @bot.message_handler(func=lambda msg: msg.chat.id in esperando_email)
@@ -81,6 +91,7 @@ def verify_email(message):
     if plano:
         del esperando_email[message.chat.id]
         plano_ativo[message.chat.id] = plano
+        modo_conversa[message.chat.id] = False
         if plano == "medio":
             botoes_medio(message)
         elif plano == "premium":
@@ -128,20 +139,19 @@ def mostrar_redes(call):
 
     bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
 
-# ---- A Arqui responde ----
-@bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
-def arqui_responde(call):
-    esperando_pergunta[call.message.chat.id] = True
-    bot.send_message(call.message.chat.id, "🤖 Estou feliz por te ajudar! Qual a tua dúvida?")
+# ---- A Arqui responde (mensagens livres) ----
+@bot.message_handler(func=lambda msg: msg.text.lower() == "menu")
+def voltar_menu_cmd(message):
+    modo_conversa[message.chat.id] = False
+    if plano_ativo.get(message.chat.id) == "medio":
+        botoes_medio(message)
+    elif plano_ativo.get(message.chat.id) == "premium":
+        botoes_premium(message)
 
-@bot.message_handler(func=lambda msg: esperando_pergunta.get(msg.chat.id, False))
+@bot.message_handler(func=lambda msg: modo_conversa.get(msg.chat.id, False))
 def resposta_aluno(message):
     pergunta = message.text
     plano = plano_ativo.get(message.chat.id)
-
-    if not plano:
-        bot.send_message(message.chat.id, "⚠️ Não tens um plano ativo.")
-        return
 
     # Escolhe a base correta
     base = base_medio if plano == "medio" else base_premium
@@ -162,20 +172,16 @@ def resposta_aluno(message):
     resposta = base[best_idx]["text"]
     ref = base[best_idx].get("ref", "")
 
-    # Se resposta for muito longa, encurtar
+    # Enviar resposta
     if len(resposta) > 500:
-        resposta = resposta[:500] + "... 🔎 (continua no capítulo indicado)"
+        resposta = resposta[:500] + "... 🔎 (resposta completa no capítulo indicado)"
 
     bot.send_message(
         message.chat.id,
         f"📘 {resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
     )
 
-    # Reset do estado
-    esperando_pergunta[message.chat.id] = False
-
 # ---- RUN ----
 if __name__ == "__main__":
     print("Bot a correr 🚀")
     bot.infinity_polling()
-

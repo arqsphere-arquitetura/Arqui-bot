@@ -5,20 +5,39 @@ from telebot import types
 API_KEY = os.getenv("API_KEY")
 bot = telebot.TeleBot(API_KEY)
 
-# Simulação da "base de alunos" (podes puxar de CSV, JSON ou DB)
+# Simulação da "base de alunos"
 alunos = {
     "aluno1@email.com": "medio",
     "aluno2@email.com": "premium"
 }
 
-# Estado temporário (guarda quem está a inserir email)
+# Estado temporário
 esperando_email = {}
+
+# ----------- NOVO START COM BOTÃO "COMEÇA AGORA" -----------
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+    markup.add("🚀 Começa agora")
+    bot.send_message(
+        message.chat.id,
+        "Olá 👋 Bem-vindo ao Arqui Bot!\n\nClica em *Começa agora* para iniciar:",
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+@bot.message_handler(func=lambda msg: msg.text == "🚀 Começa agora")
+def start_flow(message):
+    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
     markup.add("📧 Insere o teu mail para desbloquear", "🆘 Preciso de ajuda")
-    bot.send_message(message.chat.id, "Bem-vindo à ArqSphere 🚀\nEscolhe uma opção:", reply_markup=markup)
+    bot.send_message(
+        message.chat.id,
+        "Perfeito 🚀\nEscolhe uma opção abaixo:",
+        reply_markup=markup
+    )
+
+# ----------- O RESTO DO TEU FLUXO CONTINUA IGUAL -----------
 
 @bot.message_handler(func=lambda msg: msg.text == "🆘 Preciso de ajuda")
 def help_message(message):
@@ -57,7 +76,7 @@ def botoes_premium(message):
 
 @bot.message_handler(func=lambda msg: msg.text == "📩 Falar com suporte")
 def suporte(message):
-    bot.send_message(message.chat.id, "📧 suporte@arqsphere.com")
+    bot.send_message(message.chat.id, "📧 arqsphere.arquitetura@gmail.com")
 
 @bot.message_handler(func=lambda msg: msg.text == "💎 Desbloqueia Premium")
 def premium_link(message):
@@ -65,14 +84,11 @@ def premium_link(message):
 
 @bot.message_handler(func=lambda msg: msg.text == "🌐 Segue a ArqSphere")
 def redes(message):
-    bot.send_message(message.chat.id, "🌍 Redes sociais:\nInstagram: https://instagram.com/arqsphere\nLinkedIn: https://linkedin.com/company/arqsphere")
+    bot.send_message(message.chat.id, "🌍 Redes sociais:\nInstagram: https://www.instagram.com/arqsphere/\nPinterest: https://pt.pinterest.com/ArqSphere/\nFacebook:https://www.facebook.com/share/17BeqxVWTv/")
 
 @bot.message_handler(func=lambda msg: msg.text == "📂 Acessar Drive")
 def drive(message):
     bot.send_message(message.chat.id, "📂 Drive Premium: https://drive.google.com/xxxx")
-
-# Futuro: implementar "🤖 A Arqui responde" → chamada ao modelo
-# usando os ficheiros JSONL que já tens
 
 if __name__ == "__main__":
     print("Bot a correr 🚀")

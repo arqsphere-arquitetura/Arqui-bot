@@ -1,6 +1,7 @@
 import os
 import telebot
 from telebot import types
+from telebot.types import ReplyKeyboardRemove  # 👈 Import para remover teclado
 
 API_KEY = os.getenv("API_KEY")
 bot = telebot.TeleBot(API_KEY)
@@ -31,6 +32,8 @@ def send_welcome(message):
         parse_mode="Markdown",
         reply_markup=markup
     )
+    # 🔹 Remove teclado antigo
+    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
 # ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------
 
@@ -82,6 +85,7 @@ def botoes_medio(message):
         types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✅ Acesso Médio desbloqueado!", reply_markup=markup)
+    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
 def botoes_premium(message):
     markup = types.InlineKeyboardMarkup()
@@ -94,6 +98,7 @@ def botoes_premium(message):
         types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✨ Acesso Premium desbloqueado!", reply_markup=markup)
+    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
 # ----------- SUBMENU DE REDES SOCIAIS -----------
 
@@ -110,6 +115,7 @@ def mostrar_redes(call):
     markup.add(types.InlineKeyboardButton("🔙 Voltar", callback_data="voltar_menu"))
 
     bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
+    bot.send_message(call.message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
 # ----------- PLACEHOLDER PARA "ARQUI RESPONDE" -----------
 

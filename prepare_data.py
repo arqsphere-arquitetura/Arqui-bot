@@ -37,7 +37,7 @@ def split_text(text, max_length=500):
     return chunks
 
 # ---- Processar PDF em JSONL ----
-def process_pdf(pdf_path, output_path, plano):
+def process_pdf(pdf_path, output_path, plano, append=False):
     pages = extract_pdf_text(pdf_path)
     data = []
 
@@ -52,16 +52,20 @@ def process_pdf(pdf_path, output_path, plano):
                 "embedding": embedding
             })
 
-    with open(output_path, "w", encoding="utf-8") as f:
+    mode = "a" if append else "w"
+    with open(output_path, mode, encoding="utf-8") as f:
         for entry in data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(f"✅ {plano} pronto: {len(data)} blocos salvos em {output_path}")
+    print(f"✅ {plano} atualizado com {len(data)} blocos de {pdf_path}")
 
 # ---- MAIN ----
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # 👉 PDFs estão na raiz do repositório
-    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO DE ARQUITETURA.pdf", "data/base_medio.jsonl", plano="Médio")
-    process_pdf("MÓDULO EXTRA - SEO.pdf", "data/base_premium.jsonl", plano="Premium")
+    # ⚡ Plano Médio -> só o ebook Portfólio
+    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO D...pdf", "data/base_medio.jsonl", plano="Médio")
+
+    # ⚡ Plano Premium -> Portfólio + SEO (junta os dois)
+    process_pdf("GUIA PRÁTICO PARA CRIAR UM PORTFÓLIO D...pdf", "data/base_premium.jsonl", plano="Premium")
+    process_pdf("MÓDULO EXTRA - SEO.pdf", "data/base_premium.jsonl", plano="Premium", append=True)

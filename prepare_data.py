@@ -37,14 +37,14 @@ def split_text(text, max_length=500):
     return chunks
 
 # ---- Processar PDF em JSONL ----
-def process_pdf(pdf_path, output_path, plano):
+def process_pdf(pdf_path, plano, append=False):
     pages = extract_pdf_text(pdf_path)
     data = []
 
     for page_num, page_text in pages:
         chunks = split_text(page_text)
         for i, chunk in enumerate(chunks, start=1):
-            ref = f"Plano {plano} - Página {page_num}, Bloco {i}"
+            ref = f"Plano {plano} - {os.path.basename(pdf_path)} - Página {page_num}, Bloco {i}"
             embedding = embed_text(chunk)
             data.append({
                 "text": chunk,
@@ -52,38 +52,30 @@ def process_pdf(pdf_path, output_path, plano):
                 "embedding": embedding
             })
 
-    with open(output_path, "w", encoding="utf-8") as f:
+    output_path = f"data/base_{plano.lower()}.jsonl"
+    mode = "a" if append else "w"
+
+    with open(output_path, mode, encoding="utf-8") as f:
         for entry in data:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    print(f"✅ {plano} pronto: {len(data)} blocos salvos em {output_path}")
+    print(f"✅ {plano} atualizado com {len(data)} blocos de {os.path.basename(pdf_path)}")
 
 
 # ---- MAIN ----
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # --- Plano Médio (apenas 1 PDF) ---
-    process_pdf("medio.pdf", "data/base_medio.jsonl", plano="Médio")
+    # --- Plano Médio (1 PDF apenas) ---
+    process_pdf("medio.pdf", plano="Médio")
 
-    # --- Plano Premium (junção de 2 PDFs) ---
-    premium_output = "data/base_premium.jsonl"
+    # --- Plano Premium (todos PDFs dentro da pasta premium_pdfs) ---
+    premium_pdfs = "premium_pdfs"
+    first = True
+    for pdf_file in os.listdir(premium_pdfs):
+        if pdf_file.endswith(".pdf"):
+            pdf_path = os.path.join(premium_pdfs, pdf_file)
+            process_pdf(pdf_path, plano="Premium", append=not first)
+            first = False
 
-    # Primeiro PDF (igual ao médio)
-    process_pdf("medio.pdf", premium_output, plano="Premium")
-
-    # Segundo PDF (SEO extra) → acrescentar no mesmo ficheiro
-    pages = extract_pdf_text("seo.pdf")
-    with open(premium_output, "a", encoding="utf-8") as f:
-        for page_num, page_text in pages:
-            chunks = split_text(page_text)
-            for i, chunk in enumerate(chunks, start=1):
-                ref = f"Plano Premium (SEO) - Página {page_num}, Bloco {i}"
-                embedding = embed_text(chunk)
-                f.write(json.dumps({
-                    "text": chunk,
-                    "ref": ref,
-                    "embedding": embedding
-                }, ensure_ascii=False) + "\n")
-
-    print("✅ Premium atualizado com SEO incluído!")
+    print("🚀 Todos os planos processados com sucesso!")

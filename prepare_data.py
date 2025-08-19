@@ -62,10 +62,10 @@ def process_pdf(pdf_path, output_path, plano):
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
 
-    # Médio (ficheiro único)
-    process_pdf("medio.pdf", "data/base_medio.jsonl", plano="Médio")
+    # Médio (ficheiro único dentro da pasta premium_pdfs)
+    process_pdf("premium_pdfs/medio.pdf", "data/base_medio.jsonl", plano="Médio")
 
-    # Premium (vários PDFs dentro da pasta)
+    # Premium (todos os PDFs dentro da pasta premium_pdfs)
     premium_folder = "premium_pdfs"
     premium_output = "data/base_premium.jsonl"
 

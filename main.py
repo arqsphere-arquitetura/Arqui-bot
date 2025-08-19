@@ -20,7 +20,7 @@ esperando_email = {}
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton("📧 Insere o teu email para desbloquear", callback_data="inserir_email")
+    btn1 = types.InlineKeyboardButton("📧 Desbloquear acesso", callback_data="inserir_email")
     btn2 = types.InlineKeyboardButton("🆘 Preciso de ajuda", callback_data="ajuda")
     markup.add(btn1, btn2)
 
@@ -28,7 +28,6 @@ def send_welcome(message):
         message.chat.id,
         "👋 Olá, bem-vindo(a) à *Arqui Bot*! 🚀\n\nEscolhe uma opção para começar:",
         parse_mode="Markdown",
-        reply_markup=markup
     )
 
 # ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------

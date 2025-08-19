@@ -1,22 +1,41 @@
 import os
+import json
 import telebot
 from telebot import types
-import openai
-import pickle
+from openai import OpenAI
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-API_KEY = os.getenv("API_KEY")  # token do Telegram
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # token OpenAI
+# ---- Configurações ----
+API_KEY = os.getenv("API_KEY")  # Token do BotFather
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")  # Token da OpenAI
 bot = telebot.TeleBot(API_KEY)
-openai.api_key = OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_KEY)
 
-# Carregar embeddings preparados
-with open("data/base_medio.pkl", "rb") as f:
-    base_medio = pickle.load(f)
-with open("data/base_premium.pkl", "rb") as f:
-    base_premium = pickle.load(f)
+# ---- Carregar bases ----
+def load_jsonl(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        return [json.loads(line) for line in f]
 
-# Base de alunos (demo)
+base_medio = load_jsonl("data/base_medio.jsonl")
+base_premium = load_jsonl("data/base_premium.jsonl")
+
+# Criar embeddings
+def embed_text(text):
+    resp = client.embeddings.create(model="text-embedding-3-small", input=text)
+    return resp.data[0].embedding
+
+for entry in base_medio:
+    if "embedding" not in entry:
+        entry["embedding"] = embed_text(entry["text"])
+
+for entry in base_premium:
+    if "embedding" not in entry:
+        entry["embedding"] = embed_text(entry["text"])
+
+# ---- Simulação da "base de alunos" ----
 alunos = {
     "aluno1@email.com": "medio",
     "aluno2@email.com": "premium",
@@ -24,58 +43,9 @@ alunos = {
 }
 
 esperando_email = {}
-plano_ativo = {}
+plano_ativo = {}  # Guarda o plano do aluno (medio/premium)
 
-# ----------- FUNÇÃO BUSCA SEMÂNTICA -----------
-def cosine_similarity(a, b):
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def buscar_contexto(pergunta, plano):
-    # Escolhe base conforme plano
-    base = base_medio if plano == "medio" else base_premium
-    # Embedding da pergunta
-    emb = openai.embeddings.create(
-        model="text-embedding-3-small",
-        input=pergunta
-    )["data"][0]["embedding"]
-
-    # Calcular similaridade
-    scores = []
-    for item in base:
-        score = cosine_similarity(np.array(emb), np.array(item["embedding"]))
-        scores.append((score, item))
-
-    # Ordenar por relevância
-    scores.sort(key=lambda x: x[0], reverse=True)
-    melhores = [s[1]["text"] for s in scores[:3]]
-
-    return "\n\n".join(melhores)
-
-def responder_aluno(pergunta, plano):
-    contexto = buscar_contexto(pergunta, plano)
-
-    prompt = f"""
-    És a Arqui Bot, especialista em arquitetura.
-    Usa o contexto abaixo para responder de forma clara e natural.
-
-    Contexto:
-    {contexto}
-
-    Pergunta do aluno:
-    {pergunta}
-
-    Responde de forma curta, amigável e se necessário indica o capítulo/ponto onde pode encontrar mais detalhes.
-    """
-
-    resp = openai.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
-    )
-    return resp.choices[0].message.content.strip()
-
-# ----------- START -----------
-
+# ---- START ----
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
@@ -90,8 +60,7 @@ def send_welcome(message):
         reply_markup=markup
     )
 
-# ----------- CALLBACKS -----------
-
+# ---- CALLBACKS ----
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     if call.data == "ajuda":
@@ -101,11 +70,16 @@ def callback_query(call):
         esperando_email[call.message.chat.id] = True
         bot.send_message(call.message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
 
-    elif call.data == "arqui_responde":
-        bot.send_message(call.message.chat.id, "🤖 Estou feliz por te ajudar! Qual a tua dúvida?")
+    elif call.data == "redes":
+        mostrar_redes(call)
 
-# ----------- VERIFICAR EMAIL -----------
+    elif call.data == "voltar_menu":
+        if plano_ativo.get(call.message.chat.id) == "medio":
+            botoes_medio(call.message)
+        elif plano_ativo.get(call.message.chat.id) == "premium":
+            botoes_premium(call.message)
 
+# ---- Verificar Email ----
 @bot.message_handler(func=lambda msg: msg.chat.id in esperando_email)
 def verify_email(message):
     email = message.text.strip().lower()
@@ -121,8 +95,7 @@ def verify_email(message):
     else:
         bot.send_message(message.chat.id, "❌ Email não encontrado. Tenta novamente ou contacta o suporte.")
 
-# ----------- MENUS -----------
-
+# ---- Menus ----
 def botoes_medio(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(
@@ -147,14 +120,53 @@ def botoes_premium(message):
     )
     bot.send_message(message.chat.id, "✨ Acesso Premium desbloqueado!", reply_markup=markup)
 
-# ----------- CHAT LIVRE -----------
+# ---- Submenu Redes ----
+def mostrar_redes(call):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("📸 Instagram", url="https://www.instagram.com/arqsphere/"),
+        types.InlineKeyboardButton("📘 Facebook", url="https://www.facebook.com/share/17BeqxVWTv/")
+    )
+    markup.add(
+        types.InlineKeyboardButton("📌 Pinterest", url="https://pt.pinterest.com/ArqSphere/"),
+        types.InlineKeyboardButton("📰 Blog", url="https://arqsphere.wixsite.com/arqsphere")
+    )
+    markup.add(types.InlineKeyboardButton("🔙 Voltar", callback_data="voltar_menu"))
+
+    bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
+
+# ---- A Arqui responde ----
+@bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
+def arqui_responde(call):
+    bot.send_message(call.message.chat.id, "🤖 Estou feliz por te ajudar! Qual a tua dúvida?")
 
 @bot.message_handler(func=lambda msg: plano_ativo.get(msg.chat.id) in ["medio", "premium"])
-def chat_livre(message):
+def resposta_aluno(message):
+    pergunta = message.text
     plano = plano_ativo.get(message.chat.id)
-    resposta = responder_aluno(message.text, plano)
-    bot.send_message(message.chat.id, resposta)
 
+    # Escolhe a base correta
+    base = base_medio if plano == "medio" else base_premium
+
+    # Embedding da pergunta
+    pergunta_emb = embed_text(pergunta)
+
+    # Similaridade
+    textos = [entry["text"] for entry in base]
+    embeds = [entry["embedding"] for entry in base]
+    sims = cosine_similarity([pergunta_emb], embeds)[0]
+    best_idx = int(np.argmax(sims))
+
+    resposta = base[best_idx]["text"]
+    ref = base[best_idx].get("ref", "")
+
+    # Enviar resposta
+    bot.send_message(
+        message.chat.id,
+        f"📘 {resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
+    )
+
+# ---- RUN ----
 if __name__ == "__main__":
     print("Bot a correr 🚀")
     bot.infinity_polling()

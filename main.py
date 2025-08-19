@@ -9,7 +9,7 @@ bot = telebot.TeleBot(API_KEY)
 alunos = {
     "aluno1@email.com": "medio",
     "aluno2@email.com": "premium",
-    "arqsphere.arquitetura@gmail.com":"premium"
+    "arqsphere.arquitetura@gmail.com": "premium"  # teu email
 }
 
 # Estado temporário
@@ -28,6 +28,7 @@ def send_welcome(message):
         message.chat.id,
         "👋 Olá, bem-vindo(a) à *Arqui Bot*! 🚀\n\nEscolhe uma opção para começar:",
         parse_mode="Markdown",
+        reply_markup=markup   # <-- Faltava isto!
     )
 
 # ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------

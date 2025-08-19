@@ -14,7 +14,7 @@ alunos = {
 # Estado temporário
 esperando_email = {}
 
-# ----------- NOVO START COM BOTÃO "COMEÇA AGORA" -----------
+# ----------- START -----------
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
@@ -30,13 +30,13 @@ def send_welcome(message):
         reply_markup=markup
     )
 
-# ----------- O RESTO DO TEU FLUXO CONTINUA IGUAL -----------
+# ----------- OPÇÕES -----------
 
 @bot.message_handler(func=lambda msg: msg.text == "🆘 Preciso de ajuda")
 def help_message(message):
     bot.send_message(message.chat.id, "📩 Suporte ao cliente: arqsphere.arquitetura@gmail.com")
 
-@bot.message_handler(func=lambda msg: msg.text == "📧 Insere o teu mail para desbloquear")
+@bot.message_handler(func=lambda msg: msg.text == "📧 Insere o teu email para desbloquear")
 def ask_email(message):
     esperando_email[message.chat.id] = True
     bot.send_message(message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
@@ -77,11 +77,16 @@ def premium_link(message):
 
 @bot.message_handler(func=lambda msg: msg.text == "🌐 Segue a ArqSphere")
 def redes(message):
-    bot.send_message(message.chat.id, "🌍 Redes sociais:\nInstagram: https://www.instagram.com/arqsphere/\nPinterest: https://pt.pinterest.com/ArqSphere/\nFacebook:https://www.facebook.com/share/17BeqxVWTv/")
+    bot.send_message(
+        message.chat.id,
+        "🌍 Redes sociais:\nInstagram: https://www.instagram.com/arqsphere/\nPinterest: https://pt.pinterest.com/ArqSphere/\nFacebook: https://www.facebook.com/share/17BeqxVWTv/"
+    )
 
 @bot.message_handler(func=lambda msg: msg.text == "📂 Acessar Drive")
 def drive(message):
     bot.send_message(message.chat.id, "📂 Drive Premium: https://drive.google.com/xxxx")
+
+# ----------- MAIN -----------
 
 if __name__ == "__main__":
     print("Bot a correr 🚀")

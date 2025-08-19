@@ -16,15 +16,18 @@ esperando_email = {}
 
 # ----------- NOVO START COM BOTÃO "COMEÇA AGORA" -----------
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=["start"])
 def send_welcome(message):
-    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-    markup.add("🚀 Começa agora")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("📧 Insere o teu email para desbloquear")
+    btn2 = types.KeyboardButton("🆘 Preciso de ajuda")
+    markup.add(btn1, btn2)
+
     bot.send_message(
         message.chat.id,
-        "Olá 👋 Bem-vindo(a) à Arqui Bot!\n\nClica em *Começa agora* para iniciar:",
-        reply_markup=markup,
-        parse_mode="Markdown"
+        "👋 Olá, bem-vindo(a) à *Arqui Bot*! 🚀\n\nEscolhe uma opção para começar:",
+        parse_mode="Markdown",
+        reply_markup=markup
     )
 
 @bot.message_handler(func=lambda msg: msg.text == "🚀 Começa agora")
@@ -41,7 +44,7 @@ def start_flow(message):
 
 @bot.message_handler(func=lambda msg: msg.text == "🆘 Preciso de ajuda")
 def help_message(message):
-    bot.send_message(message.chat.id, "📩 Suporte ao cliente: suporte@arqsphere.com")
+    bot.send_message(message.chat.id, "📩 Suporte ao cliente: arqsphere.arquitetura@gmail.com")
 
 @bot.message_handler(func=lambda msg: msg.text == "📧 Insere o teu mail para desbloquear")
 def ask_email(message):

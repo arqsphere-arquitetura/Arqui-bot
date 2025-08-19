@@ -30,7 +30,8 @@ alunos = {
 }
 
 esperando_email = {}
-plano_ativo = {}  # Guarda o plano do aluno (medio/premium)
+plano_ativo = {}          # Guarda o plano do aluno (medio/premium)
+esperando_pergunta = {}   # Guarda se o bot está à espera da dúvida
 
 # ---- Função para embeddings ----
 def embed_text(text):
@@ -130,12 +131,17 @@ def mostrar_redes(call):
 # ---- A Arqui responde ----
 @bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
 def arqui_responde(call):
+    esperando_pergunta[call.message.chat.id] = True
     bot.send_message(call.message.chat.id, "🤖 Estou feliz por te ajudar! Qual a tua dúvida?")
 
-@bot.message_handler(func=lambda msg: plano_ativo.get(msg.chat.id) in ["medio", "premium"])
+@bot.message_handler(func=lambda msg: esperando_pergunta.get(msg.chat.id, False))
 def resposta_aluno(message):
     pergunta = message.text
     plano = plano_ativo.get(message.chat.id)
+
+    if not plano:
+        bot.send_message(message.chat.id, "⚠️ Não tens um plano ativo.")
+        return
 
     # Escolhe a base correta
     base = base_medio if plano == "medio" else base_premium
@@ -156,16 +162,20 @@ def resposta_aluno(message):
     resposta = base[best_idx]["text"]
     ref = base[best_idx].get("ref", "")
 
-    # Enviar resposta
+    # Se resposta for muito longa, encurtar
     if len(resposta) > 500:
-        resposta = resposta[:500] + "... 🔎 (resposta completa no capítulo indicado)"
+        resposta = resposta[:500] + "... 🔎 (continua no capítulo indicado)"
 
     bot.send_message(
         message.chat.id,
         f"📘 {resposta}\n\n🔎 Podes encontrar mais sobre isto em: {ref}"
     )
 
+    # Reset do estado
+    esperando_pergunta[message.chat.id] = False
+
 # ---- RUN ----
 if __name__ == "__main__":
     print("Bot a correr 🚀")
     bot.infinity_polling()
+

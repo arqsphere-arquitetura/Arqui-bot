@@ -1,24 +1,80 @@
 import os
 import telebot
 from telebot import types
-from telebot.types import ReplyKeyboardRemove  # 👈 Import para remover teclado
+import openai
+import pickle
+import numpy as np
 
-API_KEY = os.getenv("API_KEY")
+API_KEY = os.getenv("API_KEY")  # token do Telegram
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # token OpenAI
 bot = telebot.TeleBot(API_KEY)
+openai.api_key = OPENAI_API_KEY
 
-# Simulação da "base de alunos"
+# Carregar embeddings preparados
+with open("data/base_medio.pkl", "rb") as f:
+    base_medio = pickle.load(f)
+with open("data/base_premium.pkl", "rb") as f:
+    base_premium = pickle.load(f)
+
+# Base de alunos (demo)
 alunos = {
     "aluno1@email.com": "medio",
     "aluno2@email.com": "premium",
     "arqsphere.arquitetura@gmail.com": "premium"
 }
 
-# Estado temporário
 esperando_email = {}
-plano_ativo = {}   # <- guarda se o aluno é medio ou premium
-modo_conversa = {} # <- guarda se o aluno está no "Arqui responde"
+plano_ativo = {}
 
-# ----------- START COM BOTÕES INLINE -----------
+# ----------- FUNÇÃO BUSCA SEMÂNTICA -----------
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def buscar_contexto(pergunta, plano):
+    # Escolhe base conforme plano
+    base = base_medio if plano == "medio" else base_premium
+    # Embedding da pergunta
+    emb = openai.embeddings.create(
+        model="text-embedding-3-small",
+        input=pergunta
+    )["data"][0]["embedding"]
+
+    # Calcular similaridade
+    scores = []
+    for item in base:
+        score = cosine_similarity(np.array(emb), np.array(item["embedding"]))
+        scores.append((score, item))
+
+    # Ordenar por relevância
+    scores.sort(key=lambda x: x[0], reverse=True)
+    melhores = [s[1]["text"] for s in scores[:3]]
+
+    return "\n\n".join(melhores)
+
+def responder_aluno(pergunta, plano):
+    contexto = buscar_contexto(pergunta, plano)
+
+    prompt = f"""
+    És a Arqui Bot, especialista em arquitetura.
+    Usa o contexto abaixo para responder de forma clara e natural.
+
+    Contexto:
+    {contexto}
+
+    Pergunta do aluno:
+    {pergunta}
+
+    Responde de forma curta, amigável e se necessário indica o capítulo/ponto onde pode encontrar mais detalhes.
+    """
+
+    resp = openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7
+    )
+    return resp.choices[0].message.content.strip()
+
+# ----------- START -----------
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
@@ -33,10 +89,8 @@ def send_welcome(message):
         parse_mode="Markdown",
         reply_markup=markup
     )
-    # 🔹 Remove teclado antigo
-    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
-# ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------
+# ----------- CALLBACKS -----------
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -47,14 +101,8 @@ def callback_query(call):
         esperando_email[call.message.chat.id] = True
         bot.send_message(call.message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
 
-    elif call.data == "redes":
-        mostrar_redes(call)
-
-    elif call.data == "voltar_menu":
-        if plano_ativo.get(call.message.chat.id) == "medio":
-            botoes_medio(call.message)
-        elif plano_ativo.get(call.message.chat.id) == "premium":
-            botoes_premium(call.message)
+    elif call.data == "arqui_responde":
+        bot.send_message(call.message.chat.id, "🤖 Estou feliz por te ajudar! Qual a tua dúvida?")
 
 # ----------- VERIFICAR EMAIL -----------
 
@@ -65,7 +113,7 @@ def verify_email(message):
 
     if plano:
         del esperando_email[message.chat.id]
-        plano_ativo[message.chat.id] = plano  # guarda plano ativo
+        plano_ativo[message.chat.id] = plano
         if plano == "medio":
             botoes_medio(message)
         elif plano == "premium":
@@ -73,7 +121,7 @@ def verify_email(message):
     else:
         bot.send_message(message.chat.id, "❌ Email não encontrado. Tenta novamente ou contacta o suporte.")
 
-# ----------- MENUS INLINE MEDIO / PREMIUM -----------
+# ----------- MENUS -----------
 
 def botoes_medio(message):
     markup = types.InlineKeyboardMarkup()
@@ -86,7 +134,6 @@ def botoes_medio(message):
         types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✅ Acesso Médio desbloqueado!", reply_markup=markup)
-    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
 def botoes_premium(message):
     markup = types.InlineKeyboardMarkup()
@@ -99,60 +146,14 @@ def botoes_premium(message):
         types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✨ Acesso Premium desbloqueado!", reply_markup=markup)
-    bot.send_message(message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
 
-# ----------- SUBMENU DE REDES SOCIAIS -----------
+# ----------- CHAT LIVRE -----------
 
-def mostrar_redes(call):
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
-        types.InlineKeyboardButton("📸 Instagram", url="https://www.instagram.com/arqsphere/"),
-        types.InlineKeyboardButton("📘 Facebook", url="https://www.facebook.com/share/17BeqxVWTv/")
-    )
-    markup.add(
-        types.InlineKeyboardButton("📌 Pinterest", url="https://pt.pinterest.com/ArqSphere/"),
-        types.InlineKeyboardButton("📰 Blog", url="https://arqsphere.wixsite.com/arqsphere")
-    )
-    markup.add(types.InlineKeyboardButton("🔙 Voltar", callback_data="voltar_menu"))
-
-    bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
-    bot.send_message(call.message.chat.id, " ", reply_markup=ReplyKeyboardRemove())
-
-# ----------- "ARQUI RESPONDE" MODO CONVERSA -----------
-
-@bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
-def arqui_responde(call):
-    modo_conversa[call.message.chat.id] = True
-
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("🔙 Voltar ao Menu", callback_data="voltar_menu"))
-
-    bot.send_message(
-        call.message.chat.id,
-        "🤖 Estou muito feliz em poder ajudar!\n\nEscreve a tua dúvida e vou responder com base nos materiais e ebooks 📚✨",
-        reply_markup=markup
-    )
-
-# ----------- PROCESSAR MENSAGENS NO MODO CONVERSA -----------
-
-@bot.message_handler(func=lambda msg: msg.chat.id in modo_conversa)
-def responder_duvidas(message):
-    pergunta = message.text.strip().lower()
-
-    # Se o aluno digitar "menu", sai do modo conversa
-    if pergunta in ["menu", "/menu"]:
-        del modo_conversa[message.chat.id]
-        if plano_ativo.get(message.chat.id) == "medio":
-            botoes_medio(message)
-        elif plano_ativo.get(message.chat.id) == "premium":
-            botoes_premium(message)
-        return
-
-    # Placeholder de resposta automática
-    resposta = f"📖 Boa questão!\nAinda não tenho ligação direta à base de ebooks, mas em breve vou poder responder automaticamente.\n\nRegistei a tua dúvida: *{message.text}*"
-    bot.send_message(message.chat.id, resposta, parse_mode="Markdown")
-
-# ------------------------------------------------------------
+@bot.message_handler(func=lambda msg: plano_ativo.get(msg.chat.id) in ["medio", "premium"])
+def chat_livre(message):
+    plano = plano_ativo.get(message.chat.id)
+    resposta = responder_aluno(message.text, plano)
+    bot.send_message(message.chat.id, resposta)
 
 if __name__ == "__main__":
     print("Bot a correr 🚀")

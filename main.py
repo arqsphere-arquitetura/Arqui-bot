@@ -14,13 +14,13 @@ alunos = {
 # Estado temporário
 esperando_email = {}
 
-# ----------- START -----------
+# ----------- START COM BOTÕES INLINE -----------
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("📧 Insere o teu email para desbloquear")
-    btn2 = types.KeyboardButton("🆘 Preciso de ajuda")
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton("📧 Insere o teu email para desbloquear", callback_data="inserir_email")
+    btn2 = types.InlineKeyboardButton("🆘 Preciso de ajuda", callback_data="ajuda")
     markup.add(btn1, btn2)
 
     bot.send_message(
@@ -30,16 +30,18 @@ def send_welcome(message):
         reply_markup=markup
     )
 
-# ----------- OPÇÕES -----------
+# ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------
 
-@bot.message_handler(func=lambda msg: msg.text == "🆘 Preciso de ajuda")
-def help_message(message):
-    bot.send_message(message.chat.id, "📩 Suporte ao cliente: arqsphere.arquitetura@gmail.com")
+@bot.callback_query_handler(func=lambda call: True)
+def callback_query(call):
+    if call.data == "ajuda":
+        bot.send_message(call.message.chat.id, "📩 Suporte ao cliente: arqsphere.arquitetura@gmail.com")
 
-@bot.message_handler(func=lambda msg: msg.text == "📧 Insere o teu email para desbloquear")
-def ask_email(message):
-    esperando_email[message.chat.id] = True
-    bot.send_message(message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
+    elif call.data == "inserir_email":
+        esperando_email[call.message.chat.id] = True
+        bot.send_message(call.message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
+
+# ----------- VERIFICAR EMAIL -----------
 
 @bot.message_handler(func=lambda msg: msg.chat.id in esperando_email)
 def verify_email(message):
@@ -55,38 +57,37 @@ def verify_email(message):
     else:
         bot.send_message(message.chat.id, "❌ Email não encontrado. Tenta novamente ou contacta o suporte.")
 
+# ----------- MENUS INLINE MEDIO / PREMIUM -----------
+
 def botoes_medio(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🤖 A Arqui responde", "📩 Falar com suporte")
-    markup.add("💎 Desbloqueia Premium", "🌐 Segue a ArqSphere")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("🤖 A Arqui responde", callback_data="arqui_responde"),
+        types.InlineKeyboardButton("📩 Falar com suporte", callback_data="ajuda")
+    )
+    markup.add(
+        types.InlineKeyboardButton("💎 Desbloqueia Premium", url="https://landing.arqsphere.com/premium"),
+        types.InlineKeyboardButton("🌐 Segue a ArqSphere", url="https://www.instagram.com/arqsphere/")
+    )
     bot.send_message(message.chat.id, "✅ Acesso Médio desbloqueado!", reply_markup=markup)
 
 def botoes_premium(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("🤖 A Arqui responde", "📩 Falar com suporte")
-    markup.add("📂 Acessar Drive", "🌐 Segue a ArqSphere")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("🤖 A Arqui responde", callback_data="arqui_responde"),
+        types.InlineKeyboardButton("📩 Falar com suporte", callback_data="ajuda")
+    )
+    markup.add(
+        types.InlineKeyboardButton("📂 Acessar Drive", url="https://drive.google.com/xxxx"),
+        types.InlineKeyboardButton("🌐 Segue a ArqSphere", url="https://www.instagram.com/arqsphere/")
+    )
     bot.send_message(message.chat.id, "✨ Acesso Premium desbloqueado!", reply_markup=markup)
 
-@bot.message_handler(func=lambda msg: msg.text == "📩 Falar com suporte")
-def suporte(message):
-    bot.send_message(message.chat.id, "📧 arqsphere.arquitetura@gmail.com")
+# ----------- PLACEHOLDERS PARA CALLBACKS FUTUROS -----------
 
-@bot.message_handler(func=lambda msg: msg.text == "💎 Desbloqueia Premium")
-def premium_link(message):
-    bot.send_message(message.chat.id, "👉 Acede aqui: https://landing.arqsphere.com/premium")
-
-@bot.message_handler(func=lambda msg: msg.text == "🌐 Segue a ArqSphere")
-def redes(message):
-    bot.send_message(
-        message.chat.id,
-        "🌍 Redes sociais:\nInstagram: https://www.instagram.com/arqsphere/\nPinterest: https://pt.pinterest.com/ArqSphere/\nFacebook: https://www.facebook.com/share/17BeqxVWTv/"
-    )
-
-@bot.message_handler(func=lambda msg: msg.text == "📂 Acessar Drive")
-def drive(message):
-    bot.send_message(message.chat.id, "📂 Drive Premium: https://drive.google.com/xxxx")
-
-# ----------- MAIN -----------
+@bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
+def arqui_responde(call):
+    bot.send_message(call.message.chat.id, "🤖 Escreve a tua dúvida e a Arqui vai responder com base nos ebooks!")
 
 if __name__ == "__main__":
     print("Bot a correr 🚀")

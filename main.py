@@ -9,11 +9,12 @@ bot = telebot.TeleBot(API_KEY)
 alunos = {
     "aluno1@email.com": "medio",
     "aluno2@email.com": "premium",
-    "arqsphere.arquitetura@gmail.com": "premium"  # teu email
+    "arqsphere.arquitetura@gmail.com": "premium"
 }
 
 # Estado temporário
 esperando_email = {}
+plano_ativo = {}  # <- guarda se o aluno é medio ou premium
 
 # ----------- START COM BOTÕES INLINE -----------
 
@@ -28,7 +29,7 @@ def send_welcome(message):
         message.chat.id,
         "👋 Olá, bem-vindo(a) à *Arqui Bot*! 🚀\n\nEscolhe uma opção para começar:",
         parse_mode="Markdown",
-        reply_markup=markup   # <-- Faltava isto!
+        reply_markup=markup
     )
 
 # ----------- CALLBACK QUANDO CLICA NOS BOTÕES -----------
@@ -42,6 +43,15 @@ def callback_query(call):
         esperando_email[call.message.chat.id] = True
         bot.send_message(call.message.chat.id, "Por favor, insere o teu email para verificarmos o teu acesso:")
 
+    elif call.data == "redes":
+        mostrar_redes(call)
+
+    elif call.data == "voltar_menu":
+        if plano_ativo.get(call.message.chat.id) == "medio":
+            botoes_medio(call.message)
+        elif plano_ativo.get(call.message.chat.id) == "premium":
+            botoes_premium(call.message)
+
 # ----------- VERIFICAR EMAIL -----------
 
 @bot.message_handler(func=lambda msg: msg.chat.id in esperando_email)
@@ -51,6 +61,7 @@ def verify_email(message):
 
     if plano:
         del esperando_email[message.chat.id]
+        plano_ativo[message.chat.id] = plano  # guarda plano ativo
         if plano == "medio":
             botoes_medio(message)
         elif plano == "premium":
@@ -68,7 +79,7 @@ def botoes_medio(message):
     )
     markup.add(
         types.InlineKeyboardButton("💎 Desbloqueia Premium", url="https://landing.arqsphere.com/premium"),
-        types.InlineKeyboardButton("🌐 Segue a ArqSphere", url="https://www.instagram.com/arqsphere/")
+        types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✅ Acesso Médio desbloqueado!", reply_markup=markup)
 
@@ -80,11 +91,27 @@ def botoes_premium(message):
     )
     markup.add(
         types.InlineKeyboardButton("📂 Acessar Drive", url="https://drive.google.com/xxxx"),
-        types.InlineKeyboardButton("🌐 Segue a ArqSphere", url="https://www.instagram.com/arqsphere/")
+        types.InlineKeyboardButton("🌐 Segue a ArqSphere", callback_data="redes")
     )
     bot.send_message(message.chat.id, "✨ Acesso Premium desbloqueado!", reply_markup=markup)
 
-# ----------- PLACEHOLDERS PARA CALLBACKS FUTUROS -----------
+# ----------- SUBMENU DE REDES SOCIAIS -----------
+
+def mostrar_redes(call):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton("📸 Instagram", url="https://www.instagram.com/arqsphere/"),
+        types.InlineKeyboardButton("📘 Facebook", url="https://www.facebook.com/share/17BeqxVWTv/")
+    )
+    markup.add(
+        types.InlineKeyboardButton("📌 Pinterest", url="https://pt.pinterest.com/ArqSphere/"),
+        types.InlineKeyboardButton("📰 Blog", url="https://teu-blog.com")
+    )
+    markup.add(types.InlineKeyboardButton("🔙 Voltar", callback_data="voltar_menu"))
+
+    bot.send_message(call.message.chat.id, "🌐 Segue a ArqSphere nas nossas redes:", reply_markup=markup)
+
+# ----------- PLACEHOLDER PARA "ARQUI RESPONDE" -----------
 
 @bot.callback_query_handler(func=lambda call: call.data == "arqui_responde")
 def arqui_responde(call):

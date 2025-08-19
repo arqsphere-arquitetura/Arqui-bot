@@ -22,7 +22,7 @@ def send_welcome(message):
     markup.add("🚀 Começa agora")
     bot.send_message(
         message.chat.id,
-        "Olá 👋 Bem-vindo ao Arqui Bot!\n\nClica em *Começa agora* para iniciar:",
+        "Olá 👋 Bem-vindo(a) à Arqui Bot!\n\nClica em *Começa agora* para iniciar:",
         reply_markup=markup,
         parse_mode="Markdown"
     )

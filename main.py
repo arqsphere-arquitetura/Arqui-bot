@@ -5,6 +5,8 @@ from telebot import types
 from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from dotenv import load_dotenv
+load_dotenv()
 
 # ---- Configurações ----
 API_KEY = os.getenv("API_KEY")  # Token do BotFather

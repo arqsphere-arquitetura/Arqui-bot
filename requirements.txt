@@ -1,4 +1,4 @@
-pytelegrambotapi
+pyTelegramBotAPI
 openai
 scikit-learn
 numpy

@@ -19,9 +19,9 @@ def load_jsonl(path):
     with open(path, "r", encoding="utf-8") as f:
         return [json.loads(line) for line in f]
 
-# Corrigido: agora lê da raiz do repositório
-base_medio = load_jsonl("base_medio.jsonl")
-base_premium = load_jsonl("base_premium.jsonl")
+# Corrigido: agora lê da pasta /data
+base_medio = load_jsonl("data/base_medio.jsonl")
+base_premium = load_jsonl("data/base_premium.jsonl")
 
 # ---- Simulação da "base de alunos" ----
 alunos = {
@@ -37,7 +37,7 @@ modo_conversa = {}    # Guarda se o aluno está no modo "A Arqui responde"
 # ---- Função para embeddings ----
 def embed_text(text):
     resp = client.embeddings.create(model="text-embedding-3-small", input=text)
-    return resp.data[0].embedding
+    return np.array(resp.data[0].embedding)
 
 # ---- START ----
 @bot.message_handler(commands=["start"])
@@ -164,9 +164,9 @@ def resposta_aluno(message):
     # Embedding da pergunta
     pergunta_emb = embed_text(pergunta)
 
-    # Similaridade
-    textos = [entry["text"] for entry in base]
-    embeds = [entry.get("embedding") for entry in base if "embedding" in entry]
+    # Extrair textos e embeddings da base
+    textos = [entry["text"] for entry in base if "embedding" in entry]
+    embeds = [np.array(entry["embedding"]) for entry in base if "embedding" in entry]
 
     if not embeds:
         bot.send_message(message.chat.id, "⚠️ Esta base ainda não tem embeddings. Corre o prepare_data.py primeiro.")
@@ -175,12 +175,12 @@ def resposta_aluno(message):
     sims = cosine_similarity([pergunta_emb], embeds)[0]
     best_idx = int(np.argmax(sims))
 
-    resposta = base[best_idx]["text"]
+    resposta = textos[best_idx]
     ref = base[best_idx].get("ref", "")
 
     # Enviar resposta
-    if len(resposta) > 500:
-        resposta = resposta[:500] + "... 🔎 (resposta completa no capítulo indicado)"
+    if len(resposta) > 600:
+        resposta = resposta[:600] + "... 🔎 (resposta completa no capítulo indicado)"
 
     bot.send_message(
         message.chat.id,
